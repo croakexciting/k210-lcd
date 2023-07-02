@@ -26,31 +26,31 @@ impl Spi {
         unsafe {
             // spi0 don't receive data
             let tmod = TMOD_A::TRANS;
-            let handler = &*(SPI0::ptr());
+            let handler = SPI0::ptr();
             // no interrupts for now, we just send data
-            handler.imr.write(|w| w.bits(0x00));
+            (*handler).imr.write(|w| w.bits(0x00));
             // TODO: dma support
-            handler.dmacr.write(|w| w.bits(0x00));
-            handler.dmatdlr.write(|w| w.bits(0x10));
-            handler.dmardlr.write(|w| w.bits(0x00));
+            (*handler).dmacr.write(|w| w.bits(0x00));
+            (*handler).dmatdlr.write(|w| w.bits(0x10));
+            (*handler).dmardlr.write(|w| w.bits(0x00));
             
-            handler.ser.write(|w| w.bits(0x00));
-            handler.ssienr.write(|w| w.bits(0x00));
+            (*handler).ser.write(|w| w.bits(0x00));
+            (*handler).ssienr.write(|w| w.bits(0x00));
 
-            handler.ctrlr0.write(|w| {
+            (*handler).ctrlr0.write(|w| {
                 w.work_mode().variant(mode).
                 tmod().variant(tmod).
                 frame_format().variant(frame_format).
                 data_length().bits(data_bit_length - 1)
             });
-            handler.spi_ctrlr0.reset();
-            handler.endian.write(|w| w.bits(endian as u32));
+            (*handler).spi_ctrlr0.reset();
+            (*handler).endian.write(|w| w.bits(endian as u32));
 
             // enable bus clock and device clock
             let ptr = SYSCTL::ptr();
-            (*ptr).clk_en_cent.write(|w| w.apb2_clk_en().set_bit());
-            (*ptr).clk_en_peri.write(|w| w.spi0_clk_en().set_bit());
-            (*ptr).clk_th1.write(|w| w.spi0_clk().bits(0));
+            (*ptr).clk_en_cent.modify(|_r, w| w.apb2_clk_en().set_bit());
+            (*ptr).clk_en_peri.modify(|_r, w| w.spi0_clk_en().set_bit());
+            (*ptr).clk_th1.modify(|_r, w| w.spi0_clk().bits(0));
 
             // enable spi peripheral
             (*ptr).misc.write(|w| w.spi_dvp_data_enable().set_bit());
@@ -66,7 +66,7 @@ impl Spi {
                 b = 65534;
             }
 
-            handler.baudr.write(|w| w.bits(b));
+            (*handler).baudr.write(|w| w.bits(b));
 
             Spi {}
         }
@@ -87,8 +87,8 @@ impl Spi {
         let addrl_r = (addr_len / 4) as u8;
 
         unsafe {
-            let handler = &*(SPI0::ptr());
-            handler.spi_ctrlr0.write(|w| {
+            let handler = SPI0::ptr();
+            (*handler).spi_ctrlr0.write(|w| {
                 w.aitm().variant(aitm).
                 wait_cycles().bits(wait_cycles).
                 inst_length().bits(instl_r).
@@ -99,51 +99,51 @@ impl Spi {
 
     pub fn send_data<U: Into<u32> + Copy>(&mut self, cs: u32, tx: &[U]) {
         unsafe {
-            let handler = &*(SPI0::ptr());
-            handler.ser.write(|w| w.bits(1 << cs));
-            handler.ssienr.write(|w| w.bits(0x01));
+            let handler = SPI0::ptr();
+            (*handler).ser.write(|w| w.bits(1 << cs));
+            (*handler).ssienr.write(|w| w.bits(0x01));
 
             let mut room = 0;
             for &val in tx {
                 while room == 0 {
-                    room = 32 - handler.txflr.read().bits();
+                    room = 32 - (*handler).txflr.read().bits();
                 }
-                handler.dr[0].write(|w| w.bits(val.into()));
+                (*handler).dr[0].write(|w| w.bits(val.into()));
                 room -= 1;
             }
 
-            while (handler.sr.read().bits() & 0x05) != 0x04 {
+            while ((*handler).sr.read().bits() & 0x05) != 0x04 {
                 // IDLE
             }
 
-            handler.ser.write(|w| w.bits(0x00));
-            handler.ssienr.write(|w| w.bits(0x00));
+            (*handler).ser.write(|w| w.bits(0x00));
+            (*handler).ssienr.write(|w| w.bits(0x00));
         }
     }
 
     pub fn fill_data(&mut self, cs: u32, value: u32, len: usize) {
         unsafe {
-            let handler = &*(SPI0::ptr());
-            handler.ser.write(|w| w.bits(1 << cs));
-            handler.ssienr.write(|w| w.bits(0x01));
+            let handler = SPI0::ptr();
+            (*handler).ser.write(|w| w.bits(1 << cs));
+            (*handler).ssienr.write(|w| w.bits(0x01));
 
             let mut room = 0;
             let mut l = len;
             while l != 0 {
                 while room == 0 {
-                    room = 32 - handler.txflr.read().bits();
+                    room = 32 - (*handler).txflr.read().bits();
                 }
-                handler.dr[0].write(|w| w.bits(value));
+                (*handler).dr[0].write(|w| w.bits(value));
                 room -= 1;
                 l -= 1;
             }
 
-            while (handler.sr.read().bits() & 0x05) != 0x04 {
+            while ((*handler).sr.read().bits() & 0x05) != 0x04 {
                 // IDLE
             }
 
-            handler.ser.write(|w| w.bits(0x00));
-            handler.ssienr.write(|w| w.bits(0x00));
+            (*handler).ser.write(|w| w.bits(0x00));
+            (*handler).ssienr.write(|w| w.bits(0x00));
         }
     }
 }
