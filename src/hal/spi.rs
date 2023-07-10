@@ -11,8 +11,12 @@ pub use k210_hal::{
     pac::spi0::spi_ctrlr0::AITM_A,
 };
 
+use crate::hal::dmac::{Dmac, Channel, Inc, Msize, TrWidth};
+use crate::hal::sysctl::{set_dma_sel, DmaSelect};
+
 use core::convert::Into;
 use core::marker::Copy;
+
 pub struct Spi {}
 
 impl Spi {
@@ -134,10 +138,38 @@ impl Spi {
                     room = 32 - (*handler).txflr.read().bits();
                 }
                 (*handler).dr[0].write(|w| w.bits(value));
-                room -= 1;
+                room -= 4;
                 l -= 1;
             }
 
+            while ((*handler).sr.read().bits() & 0x05) != 0x04 {
+                // IDLE
+            }
+
+            (*handler).ser.write(|w| w.bits(0x00));
+            (*handler).ssienr.write(|w| w.bits(0x00));
+        }
+    }
+
+    pub fn send_data_dma(&mut self, cs: u32, buf: u64, len: u32, ch: Channel) {
+        unsafe {
+            let handler = SPI0::ptr();
+            (*handler).dmacr.write(|w| w.bits(0x02));
+            (*handler).ssienr.write(|w| w.bits(0x01));
+            set_dma_sel(ch, DmaSelect::SSI0_TX_REQ);
+            let mut dma = Dmac{};
+            dma.set_single_mode(
+                ch,
+                buf, 
+                handler as u64 + 0x60, 
+                Inc::INCREMENT,
+                Inc::NOCHANGE, 
+                TrWidth::WIDTH_32,
+                Msize::LENGTH_4,
+                len,
+            );
+            (*handler).ser.write(|w| w.bits(1 << cs));
+            dma.wait_done(ch);
             while ((*handler).sr.read().bits() & 0x05) != 0x04 {
                 // IDLE
             }
