@@ -3,7 +3,7 @@
 #![no_main]
 
 use k210_lcd::{
-    Lcd, usleep,
+    Lcd, usleep, constant::*,
     hal::gpiohs::Gpiohs,
     k210_hal::{
         self, 
@@ -46,21 +46,8 @@ fn main() -> ! {
     let _ss = fpioa.io36.into_function(k210_hal::fpioa::SPI0_SS3);
     let _clk = fpioa.io39.into_function(k210_hal::fpioa::SPI0_SCLK);
 
-    let mut lcd = Lcd::new_lcd();
-    lcd.send_command(0x1);
-    usleep(50_000);
-    lcd.send_command(0x11);
-    usleep(120_000);
-    lcd.send_command(0x3A);
-    lcd.send_byte(0x55);
-    usleep(10_000);
-    lcd.send_command(0x13);
-    usleep(10_000);
-    lcd.send_command(0x29);
-    usleep(10_000);
-
-    usleep(100_000);
-    lcd.fill_rectangle(0, 20, 120, 100, 0);
+    let mut lcd = Lcd::new_lcd(320, 240, Dir::YxLrud);
+    lcd.lcd_draw_string(120, 116, "Hello CWYZ", BLUE);
 
     loop {}
 }
