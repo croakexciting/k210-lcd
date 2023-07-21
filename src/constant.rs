@@ -374,3 +374,7 @@ pub enum Dir {
     XyLrdu = 0xC0,
     YxLrdu = 0xE0,
 }
+
+pub const CAM_WIDTH: u32 = 320;
+pub const CAM_HEIGHT: u32 = 240;
+pub const CAM_PIXELS: usize = (CAM_WIDTH * CAM_HEIGHT) as usize;
